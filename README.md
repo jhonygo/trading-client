@@ -6,5 +6,5 @@
 
 ## Networking
 The client needs a "front" network. To create it:  
-```docker network create client```
+```docker network create front```
 
