@@ -2,11 +2,12 @@ import * as React from 'react';
 import { Notional } from './components/notional/Notional';
 import { Spread } from './components/spread/Spread';
 import PriceButton from './components/priceButton/PriceButton';
-import { Ladder } from './components/ladder/Ladder';
+import Ladder from './components/ladder/Ladder';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { TileData } from './model/tileData';
-import { PriceLadder, Movements } from './model/priceTick';
+import { Movements } from './model/priceTick';
 import { TradeRequest } from './model/tradeRequest';
+import Execution from './components/execution/Execution';
 
 export namespace TileItem {
   export interface Props {
@@ -19,10 +20,6 @@ export namespace TileItem {
   export interface State {
     bid: number;
     ask: number;
-    hover: boolean;
-    prices: PriceLadder;
-    settlementDate: string;
-    tenor: string;
     bidMovement: Movements;
     askMovement: Movements;
     isBidStale: boolean;
@@ -40,22 +37,9 @@ export class PriceTile extends React.PureComponent<
       ask: 0,
       bidMovement: Movements.None,
       askMovement: Movements.None,
-      hover: false,
-      prices: {
-        symbol: '',
-        mid: 0,
-        bids: [],
-        asks: [],
-        id: 0,
-        time: ''
-      },
       isBidStale: true,
-      isAskStale: true,
-      settlementDate: props.tile.settlementDate,
-      tenor: props.tile.tenor
+      isAskStale: true
     };
-    this.onMouseOver = this.onMouseOver.bind(this);
-    this.onMouseOut = this.onMouseOut.bind(this);
     this.handleSave = this.handleSave.bind(this);
   }
   componentDidMount() {
@@ -75,35 +59,27 @@ export class PriceTile extends React.PureComponent<
         x => tile.notional <= x.quantity
       );
 
-      const bidPrice = mayBeBidPrice === undefined ? bid : mayBeBidPrice.price;
+      const bidPrice = (mayBeBidPrice && mayBeBidPrice.price) || bid;
+
       const mayBeAskPrice = tile.price.asks.find(
         x => tile.notional <= x.quantity
       );
 
-      const askPrice = mayBeAskPrice === undefined ? ask : mayBeAskPrice.price;
+      const askPrice = (mayBeAskPrice && mayBeAskPrice.price) || ask;
 
       const askMov =
-        mayBeAskPrice === undefined ? Movements.None : mayBeAskPrice.mouvement;
+        (mayBeAskPrice && mayBeAskPrice.mouvement) || Movements.None;
       const bidMov =
-        mayBeBidPrice === undefined ? Movements.None : mayBeBidPrice.mouvement;
+        (mayBeBidPrice && mayBeBidPrice.mouvement) || Movements.None;
       this.setState({
         bid: bidPrice,
         ask: askPrice,
-        prices: tile.price,
         bidMovement: bidMov,
         askMovement: askMov,
-        isBidStale: mayBeBidPrice === undefined,
-        isAskStale: mayBeAskPrice === undefined
+        isBidStale: !mayBeBidPrice,
+        isAskStale: !mayBeAskPrice
       });
     }
-  }
-
-  onMouseOver() {
-    this.setState({ hover: true });
-  }
-
-  onMouseOut() {
-    this.setState({ hover: false });
   }
 
   handleSave(notional: number) {
@@ -130,7 +106,6 @@ export class PriceTile extends React.PureComponent<
     const {
       bid,
       ask,
-      prices,
       bidMovement,
       askMovement,
       isAskStale,
@@ -160,6 +135,7 @@ export class PriceTile extends React.PureComponent<
           <div className="col-md-2 px-0">
             <div className="card">
               <div className="card-header d-flex justify-content-center">
+                <Execution show={tile.executing} />
                 <Spread bid={bid} ask={ask} />
               </div>
               <div className="card-body d-flex justify-content-center">
@@ -208,9 +184,9 @@ export class PriceTile extends React.PureComponent<
                   onChange={this.handleOnChange}
                   onKeyDown={this.handleKeyDown}
                   onBlur={this.handleOnBlur}
-                  value={this.state.settlementDate
+                  value={tile.settlementDate
                     .concat(' (')
-                    .concat(this.state.tenor)
+                    .concat(tile.tenor)
                     .concat(')')}
                 />
                 <div className="input-group-append">
@@ -222,7 +198,7 @@ export class PriceTile extends React.PureComponent<
             </div>
           </div>
         </div>
-        <Ladder key={tile.id} prices={prices} />
+        <Ladder key={tile.id} bids={tile.price.bids} asks={tile.price.asks} />
       </div>
     );
   }
